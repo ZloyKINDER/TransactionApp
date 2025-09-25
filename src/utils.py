@@ -1,5 +1,6 @@
 import datetime
 import os
+from pprint import pprint
 from typing import Dict, List
 
 import pandas as pd
@@ -43,6 +44,46 @@ def get_cashback(total_spent: float) -> float:
     Функция для расчёта кешбека
     """
     return round((total_spent / 100), 2)
+
+
+def filter_by_state(data: list[dict], state: str = "OK") -> list[dict]:
+    """
+    Фильтрует список словарей по значению ключа 'state'.
+    """
+    if not data:
+        raise ValueError("Пустой список")
+
+    new_data = list()
+
+    for item in data:
+        if item.get("Статус") == state:
+            new_data.append(item)
+
+    return new_data
+
+
+def get_top_transactions(transactions: list[dict]) -> list[dict]:
+    """
+    Выводит топ топ-5 транзакций по сумме платежа.
+    """
+    data = sorted(transactions, key=lambda x: abs(x['Сумма платежа']), reverse=True)[:5]
+    result = []
+    for i, transaction  in enumerate(data, 1):
+        transaction_info = dict(
+            date=transaction['Дата платежа'],
+            amount= transaction['Сумма платежа'],
+            category=transaction['Категория'],
+            description=transaction['Описание'],
+        )
+        result.append(transaction_info)
+    return result
+
+
+data_temp = read_transactions_xlsx("../data/operations.xlsx")
+
+filter_date = filter_by_state(data_temp, "OK")
+pprint(get_top_transactions(filter_date))
+
 
 
 
