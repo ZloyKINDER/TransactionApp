@@ -3,7 +3,17 @@ import os
 from pprint import pprint
 from typing import Dict, List
 
+import requests
+from dotenv import load_dotenv
+
 import pandas as pd
+
+
+load_dotenv("../.env")
+
+API_KEY_FOR_CURRENT_EXCHANGE_RATE = os.getenv("API_KEY_FOR_CURRENT_EXCHANGE_RATE")
+API_KEY_ALPHA_VANTAGE = os.getenv("API_KEY_ALPHA_VANTAGE")
+
 
 
 def get_greeting() -> str:
@@ -79,10 +89,34 @@ def get_top_transactions(transactions: list[dict]) -> list[dict]:
     return result
 
 
-data_temp = read_transactions_xlsx("../data/operations.xlsx")
+def get_current_exchange_rate(currency_code: str) -> float:
+    """
+    Функция возврата текущего курса
+    """
 
-filter_date = filter_by_state(data_temp, "OK")
-pprint(get_top_transactions(filter_date))
+    url = "https://api.apilayer.com/exchangerates_data/latest"
+
+    headers = {"apikey": API_KEY_FOR_CURRENT_EXCHANGE_RATE}
+    params = {"symbols": "RUB", "base": currency_code}
+
+    response = requests.get(url, headers=headers, params=params)
+
+    response_to_float = float(response.json()["rates"]["RUB"])
+    return round(response_to_float, 2)
+
+
+def get_stock(stock:str) -> float:
+    """
+     Функция возврата текущего курса
+     """
+    url = "https://www.alphavantage.co/query"
+
+    params = {"function": "GLOBAL_QUOTE", "symbol": stock, "apikey": API_KEY_ALPHA_VANTAGE}
+    response = requests.get(url,params=params)
+
+    response_to_float = float(response.json()["Global Quote"]["05. price"])
+    return round(response_to_float, 2)
+
 
 
 
