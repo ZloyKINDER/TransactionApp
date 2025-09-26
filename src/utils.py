@@ -1,6 +1,8 @@
-import datetime
+import json
+from datetime import datetime
 import os
 from pprint import pprint
+
 from typing import Dict, List
 
 import requests
@@ -20,18 +22,20 @@ def get_greeting() -> str:
     """
     Возвращает приветсвие в зависимости от текущего времени
     """
-    massage = ""
+    message = ""
 
-    now_hour = datetime.datetime.now().hour
+    now_hour = datetime.now().hour
 
-    if 6 <= now_hour < 12:
-        massage = "Доброе утро"
+    if 0 <= now_hour < 6:
+        message = "Доброй ночи"
+    elif 6 <= now_hour < 12:
+        message = "Доброе утро"
     elif 12 <= now_hour < 18:
-        massage = "Добрый день"
+        message = "Добрый день"
     elif 18 <= now_hour < 24:
-        massage = "Добрый вечер"
+        message = "Добрый вечер"
 
-    return massage
+    return message
 
 def read_transactions_xlsx(file_path: str) -> list[dict]:
     """
@@ -71,6 +75,48 @@ def filter_by_state(data: list[dict], state: str = "OK") -> list[dict]:
 
     return new_data
 
+def filter_by_card(data: list[dict], card_number: str) -> list[dict]:
+    """
+    Фильтрует список словарей по значению ключа 'state'.
+    """
+    if not data:
+        raise ValueError("Пустой список")
+
+    new_data = list()
+
+    for item in data:
+        if item.get("Номер карты") == card_number:
+            new_data.append(item)
+
+    return new_data
+
+
+def get_card_infos(transactions: list[dict]) -> list[dict]:
+    """
+    Возвращает инфомацию о картах
+    """
+    df = pd.DataFrame(transactions)
+
+    cards = []
+
+    negative_df = df[df["Сумма платежа"] < 0]
+    data = negative_df.groupby("Номер карты")["Сумма платежа"].sum()
+
+    for card_number, total_amount  in data.items():
+
+        card_number = get_last_four(card_number)
+        total_spent = abs(round(total_amount, 2))
+        cashback = get_cashback(total_spent)
+        card_info = dict(
+            card_number = card_number,
+            total_spent = total_spent,
+            cashback = cashback
+        )
+        cards.append(card_info)
+
+    return cards
+
+
 
 def get_top_transactions(transactions: list[dict]) -> list[dict]:
     """
@@ -78,7 +124,7 @@ def get_top_transactions(transactions: list[dict]) -> list[dict]:
     """
     data = sorted(transactions, key=lambda x: abs(x['Сумма платежа']), reverse=True)[:5]
     result = []
-    for i, transaction  in enumerate(data, 1):
+    for i, transaction in enumerate(data, 1):
         transaction_info = dict(
             date=transaction['Дата платежа'],
             amount= transaction['Сумма платежа'],
@@ -89,7 +135,7 @@ def get_top_transactions(transactions: list[dict]) -> list[dict]:
     return result
 
 
-def get_current_exchange_rate(currency_code: str) -> float:
+def get_current_exchange_rate(currency_codes: list) -> list:
     """
     Функция возврата текущего курса
     """
@@ -97,29 +143,104 @@ def get_current_exchange_rate(currency_code: str) -> float:
     url = "https://api.apilayer.com/exchangerates_data/latest"
 
     headers = {"apikey": API_KEY_FOR_CURRENT_EXCHANGE_RATE}
-    params = {"symbols": "RUB", "base": currency_code}
+    result = []
+    for code in currency_codes:
+        params = {"symbols": "RUB", "base": code}
+        response = requests.get(url, headers=headers, params=params)
+        response_to_float = float(response.json()["rates"]["RUB"])
 
-    response = requests.get(url, headers=headers, params=params)
+        currency_code_info = dict(
+            currency = code,
+            rate = round(response_to_float, 2)
+        )
+        result.append(currency_code_info)
 
-    response_to_float = float(response.json()["rates"]["RUB"])
-    return round(response_to_float, 2)
+    return result
 
 
-def get_stock(stock:str) -> float:
+def get_stock(stocks: list) -> list:
     """
      Функция возврата текущего курса
      """
     url = "https://www.alphavantage.co/query"
 
-    params = {"function": "GLOBAL_QUOTE", "symbol": stock, "apikey": API_KEY_ALPHA_VANTAGE}
-    response = requests.get(url,params=params)
+    result = []
+    for stock in stocks:
+        params = {"function": "GLOBAL_QUOTE", "symbol": stock, "apikey": API_KEY_ALPHA_VANTAGE}
+        response = requests.get(url, params=params)
+        response_to_float = float(response.json()["Global Quote"]["05. price"])
+        stocks_info = dict(
+            stock = stock,
+            price = round(response_to_float, 2)
+        )
+        result.append(stocks_info)
 
-    response_to_float = float(response.json()["Global Quote"]["05. price"])
-    return round(response_to_float, 2)
+    return result
 
 
 
+def get_date(date: str) -> str:
+    """
+    Возвращает дату из формата ГГГГ-ММ-ДД в ДД.ММ.ГГГГ
+    """
+
+    year = date[:4]
+    month = date[5:7]
+    day = date[8:10]
+    new_date = day + "." + month + "." + year
+
+    try:
+        datetime.strptime(new_date, "%d.%m.%Y")
+        return new_date
+    except ValueError:
+        return date
+
+
+def filter_by_date(data: list[dict], start_date: str, end_date: str) -> list[dict]:
+    """
+    Фильтрует список словарей в промежутке star_date и  end_date по значению Дата платежа
+    """
+
+    if isinstance(start_date, str):
+        start_date = datetime.strptime(start_date, '%d.%m.%Y')
+    if isinstance(end_date, str):
+        end_date = datetime.strptime(end_date, '%d.%m.%Y')
+
+    filter_date = []
+    for item in data:
+
+        date_value = str(item["Дата платежа"]).strip().lower()
+        if date_value == "nan" or date_value == "":
+            continue
+
+        item_date = datetime.strptime(str(item["Дата платежа"]), "%d.%m.%Y")
+
+        if start_date <= item_date <= end_date:
+            filter_date.append(item)
+
+
+    return filter_date
 
 
 
+def load_json_data(file_path: str) -> dict:
+    """
+    Возвращает данные о финансовых транзакция из JSON
+    """
+    try:
+        if not os.path.exists(file_path):
+            return {}
+
+        if os.path.getsize(file_path) == 0:
+            return {}
+
+        with open(file_path, "r", encoding="utf-8") as file:
+            data = json.load(file)
+
+
+
+        return data
+
+    except (json.JSONDecodeError, FileNotFoundError, PermissionError, OSError):
+        return {}
 
