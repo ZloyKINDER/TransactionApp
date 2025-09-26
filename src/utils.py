@@ -1,21 +1,15 @@
 import json
-from datetime import datetime
 import os
-from pprint import pprint
-
-from typing import Dict, List
-
-import requests
-from dotenv import load_dotenv
+from datetime import datetime
 
 import pandas as pd
-
+import requests
+from dotenv import load_dotenv
 
 load_dotenv("../.env")
 
 API_KEY_FOR_CURRENT_EXCHANGE_RATE = os.getenv("API_KEY_FOR_CURRENT_EXCHANGE_RATE")
 API_KEY_ALPHA_VANTAGE = os.getenv("API_KEY_ALPHA_VANTAGE")
-
 
 
 def get_greeting() -> str:
@@ -37,6 +31,7 @@ def get_greeting() -> str:
 
     return message
 
+
 def read_transactions_xlsx(file_path: str) -> list[dict]:
     """
     Функция для считывания финансовых операций из Excel
@@ -45,13 +40,14 @@ def read_transactions_xlsx(file_path: str) -> list[dict]:
     return xlsx_data.to_dict(orient="records")
 
 
-def get_last_four(input_string:str) -> str:
+def get_last_four(input_string: str) -> str:
     """
     Функция для возвращения последний четырёх символов
     """
     if input_string:
         return input_string[-4:]
     return "None"
+
 
 def get_cashback(total_spent: float) -> float:
     """
@@ -75,21 +71,6 @@ def filter_by_state(data: list[dict], state: str = "OK") -> list[dict]:
 
     return new_data
 
-def filter_by_card(data: list[dict], card_number: str) -> list[dict]:
-    """
-    Фильтрует список словарей по значению ключа 'state'.
-    """
-    if not data:
-        raise ValueError("Пустой список")
-
-    new_data = list()
-
-    for item in data:
-        if item.get("Номер карты") == card_number:
-            new_data.append(item)
-
-    return new_data
-
 
 def get_card_infos(transactions: list[dict]) -> list[dict]:
     """
@@ -102,34 +83,29 @@ def get_card_infos(transactions: list[dict]) -> list[dict]:
     negative_df = df[df["Сумма платежа"] < 0]
     data = negative_df.groupby("Номер карты")["Сумма платежа"].sum()
 
-    for card_number, total_amount  in data.items():
+    for card_number, total_amount in data.items():
 
-        card_number = get_last_four(card_number)
+        card_number = get_last_four(str(card_number))
         total_spent = abs(round(total_amount, 2))
         cashback = get_cashback(total_spent)
-        card_info = dict(
-            card_number = card_number,
-            total_spent = total_spent,
-            cashback = cashback
-        )
+        card_info = dict(last_digits=card_number, total_spent=total_spent, cashback=cashback)
         cards.append(card_info)
 
     return cards
-
 
 
 def get_top_transactions(transactions: list[dict]) -> list[dict]:
     """
     Выводит топ топ-5 транзакций по сумме платежа.
     """
-    data = sorted(transactions, key=lambda x: abs(x['Сумма платежа']), reverse=True)[:5]
+    data = sorted(transactions, key=lambda x: abs(x["Сумма платежа"]), reverse=True)[:5]
     result = []
     for i, transaction in enumerate(data, 1):
         transaction_info = dict(
-            date=transaction['Дата платежа'],
-            amount= transaction['Сумма платежа'],
-            category=transaction['Категория'],
-            description=transaction['Описание'],
+            date=transaction["Дата платежа"],
+            amount=transaction["Сумма платежа"],
+            category=transaction["Категория"],
+            description=transaction["Описание"],
         )
         result.append(transaction_info)
     return result
@@ -149,10 +125,7 @@ def get_current_exchange_rate(currency_codes: list) -> list:
         response = requests.get(url, headers=headers, params=params)
         response_to_float = float(response.json()["rates"]["RUB"])
 
-        currency_code_info = dict(
-            currency = code,
-            rate = round(response_to_float, 2)
-        )
+        currency_code_info = dict(currency=code, rate=round(response_to_float, 2))
         result.append(currency_code_info)
 
     return result
@@ -160,8 +133,8 @@ def get_current_exchange_rate(currency_codes: list) -> list:
 
 def get_stock(stocks: list) -> list:
     """
-     Функция возврата текущего курса
-     """
+    Функция возврата текущего курса
+    """
     url = "https://www.alphavantage.co/query"
 
     result = []
@@ -169,14 +142,10 @@ def get_stock(stocks: list) -> list:
         params = {"function": "GLOBAL_QUOTE", "symbol": stock, "apikey": API_KEY_ALPHA_VANTAGE}
         response = requests.get(url, params=params)
         response_to_float = float(response.json()["Global Quote"]["05. price"])
-        stocks_info = dict(
-            stock = stock,
-            price = round(response_to_float, 2)
-        )
+        stocks_info = dict(stock=stock, price=round(response_to_float, 2))
         result.append(stocks_info)
 
     return result
-
 
 
 def get_date(date: str) -> str:
@@ -201,26 +170,21 @@ def filter_by_date(data: list[dict], start_date: str, end_date: str) -> list[dic
     Фильтрует список словарей в промежутке star_date и  end_date по значению Дата платежа
     """
 
-    if isinstance(start_date, str):
-        start_date = datetime.strptime(start_date, '%d.%m.%Y')
-    if isinstance(end_date, str):
-        end_date = datetime.strptime(end_date, '%d.%m.%Y')
+    start_dt = datetime.strptime(start_date, "%d.%m.%Y")
+    end_dt = datetime.strptime(end_date, "%d.%m.%Y")
 
     filter_date = []
     for item in data:
-
         date_value = str(item["Дата платежа"]).strip().lower()
         if date_value == "nan" or date_value == "":
             continue
 
         item_date = datetime.strptime(str(item["Дата платежа"]), "%d.%m.%Y")
 
-        if start_date <= item_date <= end_date:
+        if start_dt <= item_date <= end_dt:
             filter_date.append(item)
 
-
     return filter_date
-
 
 
 def load_json_data(file_path: str) -> dict:
@@ -237,10 +201,10 @@ def load_json_data(file_path: str) -> dict:
         with open(file_path, "r", encoding="utf-8") as file:
             data = json.load(file)
 
-
-
-        return data
+        if isinstance(data, dict):
+            return data
+        else:
+            return {}
 
     except (json.JSONDecodeError, FileNotFoundError, PermissionError, OSError):
         return {}
-
