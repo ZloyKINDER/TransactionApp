@@ -1,5 +1,4 @@
 from datetime import datetime
-from pprint import pprint
 from typing import Any, Dict
 
 from src.utils import (filter_by_date, filter_by_state, get_card_infos, get_current_exchange_rate, get_date,
