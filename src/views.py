@@ -2,8 +2,18 @@ from datetime import datetime
 from pprint import pprint
 from typing import Any, Dict
 
-from src.utils import (filter_by_date, filter_by_state, get_card_infos, get_current_exchange_rate, get_date,
-                       get_greeting, get_stock, get_top_transactions, load_json_data, read_transactions_xlsx)
+from src.utils import (
+    filter_by_date,
+    filter_by_state,
+    get_card_infos,
+    get_current_exchange_rate,
+    get_date,
+    get_greeting,
+    get_stock,
+    get_top_transactions,
+    load_json_data,
+    read_transactions_xlsx,
+)
 
 
 def main_page(date_string: str) -> dict:
@@ -27,8 +37,9 @@ def main_page(date_string: str) -> dict:
     user_currencies = user_settings.get("user_currencies", [])
     user_stocks = user_settings.get("user_stocks", [])
 
+    now_hour = datetime.now().hour
     result: Dict[str, Any] = {
-        "greeting": get_greeting(),
+        "greeting": get_greeting(now_hour),
         "cards": get_card_infos(filtered_transactions),
         "top_transactions": get_top_transactions(filtered_transactions),
         "currency_rates": get_current_exchange_rate(user_currencies),

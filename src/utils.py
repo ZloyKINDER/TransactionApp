@@ -26,13 +26,11 @@ API_KEY_FOR_CURRENT_EXCHANGE_RATE = os.getenv("API_KEY_FOR_CURRENT_EXCHANGE_RATE
 API_KEY_ALPHA_VANTAGE = os.getenv("API_KEY_ALPHA_VANTAGE")
 
 
-def get_greeting() -> str:
+def get_greeting(now_hour: int) -> str:
     """
     Возвращает приветсвие в зависимости от текущего времени
     """
     message = ""
-
-    now_hour = datetime.now().hour
 
     if 0 <= now_hour < 6:
         message = "Доброй ночи"
@@ -134,6 +132,9 @@ def get_card_infos(transactions: list[dict]) -> list[dict]:
     """
     Возвращает инфомацию о картах
     """
+    if not transactions:
+        return []
+
     df = pd.DataFrame(transactions)
 
     cards = []
