@@ -1,11 +1,22 @@
+import json
 from datetime import datetime
 from typing import Any, Dict
 
-from src.utils import (filter_by_date, filter_by_state, get_card_infos, get_current_exchange_rate, get_date,
-                       get_greeting, get_stock, get_top_transactions, load_json_data, read_transactions_xlsx)
+from src.utils import (
+    filter_by_date,
+    filter_by_state,
+    get_card_infos,
+    get_current_exchange_rate,
+    get_date,
+    get_greeting,
+    get_stock,
+    get_top_transactions,
+    load_json_data,
+    read_transactions_xlsx,
+)
 
 
-def main_page(date_string: str) -> dict:
+def main_page(date_string: str) -> str:
     """
     Возвращает информацию для главной страницы
     """
@@ -27,12 +38,12 @@ def main_page(date_string: str) -> dict:
     user_stocks = user_settings.get("user_stocks", [])
 
     now_hour = datetime.now().hour
-    result: Dict[str, Any] = {
+    data: Dict[str, Any] = {
         "greeting": get_greeting(now_hour),
         "cards": get_card_infos(filtered_transactions),
         "top_transactions": get_top_transactions(filtered_transactions),
         "currency_rates": get_current_exchange_rate(user_currencies),
         "stock_prices": get_stock(user_stocks),
     }
-
+    result = json.dumps(data, ensure_ascii=False, indent=2)
     return result

@@ -1,7 +1,6 @@
 import json
 import logging
 from pathlib import Path
-from pprint import pprint
 
 from src.utils import read_transactions_xlsx
 
@@ -38,5 +37,3 @@ def simple_search(search_string: str, file_path: str) -> str:
 
     json_string = json.dumps(new_data, ensure_ascii=False, indent=2)
     return json_string
-
-print(simple_search("перевод", "../data/operations.xlsx"))
