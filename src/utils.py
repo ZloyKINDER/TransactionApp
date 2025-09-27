@@ -1,10 +1,24 @@
 import json
+import logging
 import os
 from datetime import datetime
+from pathlib import Path
 
 import pandas as pd
 import requests
 from dotenv import load_dotenv
+
+MODULE_DIR = Path(__file__).resolve().parent
+LOG_DIR = MODULE_DIR.parent / "logs"
+LOG_DIR.mkdir(exist_ok=True)
+
+logger = logging.getLogger("utils")
+logger.setLevel(logging.DEBUG)
+log_file = LOG_DIR / "utils.log"
+file_handler = logging.FileHandler(log_file, mode="w")
+file_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(funcName)s: %(message)s")
+file_handler.setFormatter(file_formatter)
+logger.addHandler(file_handler)
 
 load_dotenv("../.env")
 
@@ -36,8 +50,52 @@ def read_transactions_xlsx(file_path: str) -> list[dict]:
     """
     Функция для считывания финансовых операций из Excel
     """
+
+    if not os.path.exists(file_path):
+        logger.warning("File not found")
+        return []
+
+    if os.path.getsize(file_path) == 0:
+        logger.warning("File is empty")
+        return []
+
+    logger.info(f"Reading file from: {file_path}")
     xlsx_data = pd.read_excel(file_path)
-    return xlsx_data.to_dict(orient="records")
+    xlsx_data_dict = xlsx_data.to_dict(orient="records")
+
+    if isinstance(xlsx_data_dict, list):
+        return xlsx_data_dict
+    else:
+        logger.warning("File does not contain valid data")
+        return []
+
+
+def load_json_data(file_path: str) -> dict:
+    """
+    Возвращает данные о финансовых транзакция из JSON
+    """
+    try:
+        if not os.path.exists(file_path):
+            logger.warning("File not found")
+            return {}
+
+        if os.path.getsize(file_path) == 0:
+            logger.warning("File is empty")
+            return {}
+
+        with open(file_path, "r", encoding="utf-8") as file:
+            logger.info(f"Reading file from: {file_path}")
+            data = json.load(file)
+
+        if isinstance(data, dict):
+            return data
+        else:
+            logger.warning("File does not contain valid data")
+            return {}
+
+    except (json.JSONDecodeError, FileNotFoundError, PermissionError, OSError):
+        logger.error("Incorrect data")
+        return {}
 
 
 def get_last_four(input_string: str) -> str:
@@ -141,9 +199,15 @@ def get_stock(stocks: list) -> list:
     for stock in stocks:
         params = {"function": "GLOBAL_QUOTE", "symbol": stock, "apikey": API_KEY_ALPHA_VANTAGE}
         response = requests.get(url, params=params)
-        response_to_float = float(response.json()["Global Quote"]["05. price"])
-        stocks_info = dict(stock=stock, price=round(response_to_float, 2))
-        result.append(stocks_info)
+
+        global_quote = response.json().get("Global Quote")
+        if global_quote is not None:
+            response_to_float = float(response.json()["Global Quote"]["05. price"])
+            stocks_info = dict(stock=stock, price=round(response_to_float, 2))
+            result.append(stocks_info)
+        else:
+            logger.warning(f"The request ended with an error {response.json()}")
+            result.append(response.json())
 
     return result
 
@@ -185,26 +249,3 @@ def filter_by_date(data: list[dict], start_date: str, end_date: str) -> list[dic
             filter_date.append(item)
 
     return filter_date
-
-
-def load_json_data(file_path: str) -> dict:
-    """
-    Возвращает данные о финансовых транзакция из JSON
-    """
-    try:
-        if not os.path.exists(file_path):
-            return {}
-
-        if os.path.getsize(file_path) == 0:
-            return {}
-
-        with open(file_path, "r", encoding="utf-8") as file:
-            data = json.load(file)
-
-        if isinstance(data, dict):
-            return data
-        else:
-            return {}
-
-    except (json.JSONDecodeError, FileNotFoundError, PermissionError, OSError):
-        return {}
