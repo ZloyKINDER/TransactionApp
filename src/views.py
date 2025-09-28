@@ -2,18 +2,8 @@ import json
 from datetime import datetime
 from typing import Any, Dict
 
-from src.utils import (
-    filter_by_date,
-    filter_by_state,
-    get_card_infos,
-    get_current_exchange_rate,
-    get_date,
-    get_greeting,
-    get_stock,
-    get_top_transactions,
-    load_json_data,
-    read_transactions_xlsx,
-)
+from src.utils import (filter_by_date, filter_by_state, get_card_infos, get_current_exchange_rate, get_date,
+                       get_greeting, get_stock, get_top_transactions, load_json_data, read_transactions_xlsx)
 
 
 def main_page(date_string: str) -> str:
