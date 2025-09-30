@@ -15,6 +15,9 @@ def _default_name(func):
 
 
 def report_writer(arg=None):
+    """
+    Декоратор для формирования отчётов
+    """
     if callable(arg):  # @report_writer
         func = arg
 
@@ -41,6 +44,9 @@ def report_writer(arg=None):
 
 
 def _write_json(filename, result):
+    """
+    Создаёт или генерирует json файл
+    """
     os.makedirs(os.path.dirname(filename) or ".", exist_ok=True)
     if pd is not None and isinstance(result, pd.DataFrame):
         result.to_json(filename, orient="records", force_ascii=False, indent=2)  # [web:46]
@@ -51,6 +57,9 @@ def _write_json(filename, result):
 
 @report_writer()
 def spending_by_category(transactions: pd.DataFrame, category: str, date: Optional[str] = None) -> pd.DataFrame:
+    """
+    Возвращает траты по заданной категории за последние три месяца (от переданной даты).
+    """
     end_date = datetime.now()
     if date is not None:
         end_date = datetime.strptime(date, "%Y-%m-%d %H:%M:%S").date()
